@@ -1,7 +1,7 @@
 [project]
-name = "fifa-knn-classification"
+name = "fifa-20-classification"
 version = "0.1.0"
-description = "KNN classification of FIFA player positions from skill attributes"
+description = "FIFA 20 player position classification using skill attributes and machine learning models"
 readme = "README.md"
 authors = [
     { name = "Ogwang G. Gideon", email = "radigidi@gmail.com" }

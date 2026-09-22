@@ -6,54 +6,66 @@ on a synthetic 2,000-row dataset with 6 aggregate stats (accuracy capped at
 player dataset (18,483 players, 30 granular sub-skills) — accuracy: **60%**,
 with much cleaner per-position behavior. Full history below.
 
+## Project Structure
+
+```text
+fifa-20-classification/
+├── data/
+│   ├── fifa-20-data.csv        # Cleaned dataset: 7,348 rows × 52 columns
+├── models/                     # Serialized trained model artifacts (.joblib)
+├── results/                    # Generated evaluation charts, confusion matrices & metrics
+├── scripts/                    # Pipeline scripts (data preparation, model training)
+│   ├── prepare_data.py         # Cleans raw data, filters roles & engineers features
+│   └── train.py                # Trains, evaluates & compares all benchmark models
+├── pyproject.toml              # Project dependencies & metadata
+├── uv.lock                     # Reproducible dependency lockfile
+├── .gitignore                  # Environment, cache & artifact ignore patterns
+└── README.md                   # Project documentation & benchmark findings
+```
+
 ## Data
 
-`players_20.csv` — the FIFA 20 "Complete Player Dataset" (originally
-[stefanoleone992 on Kaggle](https://www.kaggle.com/datasets/stefanoleone992/fifa-21-complete-player-dataset)),
-pulled from a GitHub mirror since Kaggle needs auth:
-https://raw.githubusercontent.com/asumapng/FIFA_EDA/main/players_20.csv
+- **Raw Data (`data/raw/players_20.csv`)**: The FIFA 20 "Complete Player Dataset"
+  (originally [stefanoleone992 on Kaggle](https://www.kaggle.com/datasets/stefanoleone992/fifa-21-complete-player-dataset)),
+  mirror URL:
+  `https://raw.githubusercontent.com/asumapng/FIFA_EDA/main/players_20.csv`
+  - 18,483 real players, 106 columns: identity/club/nation info, 6 aggregate
+    ratings (`pace/shooting/passing/dribbling/defending/physic`), 30 granular
+    sub-skills (`attacking_finishing`, `defending_standing_tackle`,
+    `mentality_interceptions`, etc.), and goalkeeper-specific ratings.
 
-18,483 real players, 106 columns: identity/club/nation info, 6 aggregate
-ratings (`pace/shooting/passing/dribbling/defending/physic`), 30 granular
-sub-skills (`attacking_finishing`, `defending_standing_tackle`,
-`mentality_interceptions`, etc.), and goalkeeper-specific ratings.
+- **Cleaned Data (`data/fifa-20-data.csv`)**: The output of `prepare_data.py`:
+  7,348 rows × 52 columns, ready to load and model on directly (see **Data cleaning** below).
 
-`players_20_cleaned.csv` — the output of `prepare_data.py`: 7,348 rows × 52
-columns, ready to load and model on directly (see **Data cleaning** below).
+## Setup (`uv`)
 
-## Repo structure
-
-```
-prepare_data.py        # loads players_20.csv, cleans it, engineers features
-train.py                # trains + compares all 5 models on the cleaned data
-players_20.csv          # raw source data
-players_20_cleaned.csv  # cleaned output (regenerate any time via prepare_data.py)
-pyproject.toml          # dependencies
-```
-
-## Setup (uv)
+Install dependencies using [`uv`](https://docs.astral.sh/uv/):
 
 ```bash
 uv sync
 ```
 
-That reads `pyproject.toml` and creates `.venv` with pandas, numpy,
-scikit-learn, and xgboost.
+This reads [`pyproject.toml`](file:///home/gideon/Documents/CODE/LEARNING/DataCamp/Practice_Projects/fifa-20-classification/pyproject.toml) and sets up `.venv` with `pandas`, `numpy`, `scikit-learn`, `matplotlib`, `seaborn`, and `joblib`.
 
-## Running it
+> [!NOTE]
+> If training XGBoost as part of the tree baseline and voting ensemble, add it via:
+> ```bash
+> uv add xgboost
+> ```
+
+## Running the Pipeline
 
 ```bash
-uv run prepare_data.py   # cleans players_20.csv, prints class counts + a NaN check
-uv run train.py           # trains all models, prints metrics + confusion matrix
+# 1. Prepare and clean raw data, engineering composite features
+uv run python scripts/prepare_data.py
+
+# 2. Train and evaluate all models, outputting comparison metrics and confusion matrices
+uv run python scripts/train.py
 ```
 
-## Models
+## Models & Benchmark Results
 
-As specified: **KNN, Random Forest, Logistic Regression, SVM**, and an
-**Ensemble**. `train.py` also throws in XGBoost as a second tree-based
-baseline alongside Random Forest, then builds the ensemble as a soft-voting
-average of those two (Random Forest + XGBoost), since tree models had the
-most reliable `predict_proba` output for voting on this feature set.
+Evaluated classifiers: **KNN, Random Forest, Logistic Regression, SVM**, and a **Voting Ensemble**. `train.py` also includes XGBoost as a second tree-based baseline alongside Random Forest, then builds the ensemble as a soft-voting average of those two (Random Forest + XGBoost), since tree models had the most reliable `predict_proba` output for voting on this feature set.
 
 | Model | Accuracy | Macro F1 |
 |---|---|---|
@@ -64,21 +76,19 @@ most reliable `predict_proba` output for voting on this feature set.
 | XGBoost | 0.590 | 0.369 |
 | Ensemble (RF + XGBoost, soft voting) | 0.599 | **0.377** |
 
-(Single 80/20 stratified split, `random_state=42` — see **Limitations** on
-why these numbers are a bit noisy.)
+*(Single 80/20 stratified split, `random_state=42` — see **Limitations** on why these numbers are a bit noisy.)*
 
-## Data cleaning
+## Data Cleaning Pipeline
 
-Applied in `prepare_data.py`, in order:
+Applied in `scripts/prepare_data.py`, in order:
 
-1. **Dropped SUB/RES rows.** `team_position` of "SUB" (bench, 7,914 rows) or
-   "RES" (reserve, 2,981 rows) is a squad-status label, not a position.
-2. **Collapsed position-slot variants** into base roles: `LCB`/`RCB`→`CB`,
-   `LDM`/`RDM`→`CDM`, `LCM`/`RCM`→`CM`, `LAM`/`RAM`→`CAM`, `LS`/`RS`→`ST`,
-   `LF`/`RF`→`CF`.
-3. **Dropped `defending_marking`** — 100% null across all 18,483 rows (EA
+1. **Dropped SUB/RES rows**: `team_position` of "SUB" (bench, 7,914 rows) or
+   "RES" (reserve, 2,981 rows) is a squad-status label, not an active tactical position.
+2. **Collapsed position-slot variants** into base roles:
+   `LCB`/`RCB` → `CB`, `LDM`/`RDM` → `CDM`, `LCM`/`RCM` → `CM`, `LAM`/`RAM` → `CAM`, `LS`/`RS` → `ST`, `LF`/`RF` → `CF`.
+3. **Dropped `defending_marking`**: 100% null across all 18,483 rows (EA
    retired that stat as of FIFA 20; the scraper kept the empty column).
-4. **Filled position-conditional NaNs with 0, not dropped.** The 6 aggregate
+4. **Filled position-conditional NaNs with 0, not dropped**: The 6 aggregate
    ratings are only computed for outfield players (NaN for all GKs); the 6
    `gk_*` ratings are only computed for GKs (NaN for everyone else). Both are
    "not applicable," not missing data — 0 keeps the row and doubles as a free
@@ -86,21 +96,20 @@ Applied in `prepare_data.py`, in order:
 5. **Engineered 3 features** (see below) — `attack_minus_defend` came out as
    the single most important feature by Random Forest importance.
 6. **Safety-net dropna** on sub-skills + physical columns — confirmed 0 rows
-   actually had anything missing after step 4.
+   had anything missing after step 4.
 
-Net: 18,483 raw rows → 7,348 cleaned rows, 15 single-label position classes.
+**Net**: 18,483 raw rows → 7,348 cleaned rows, 15 single-label position classes.
 
-## Engineered features
+## Engineered Features
 
-- `attack_minus_defend` = `attacking_finishing + skill_dribbling +
-  power_shot_power − defending_standing_tackle − defending_sliding_tackle −
-  mentality_interceptions`
-- `defensive_composite` = mean of `defending_standing_tackle`,
-  `defending_sliding_tackle`, `mentality_interceptions`
-- `playmaking_composite` = mean of `skill_long_passing`,
-  `attacking_short_passing`, `mentality_vision`
+- `attack_minus_defend`:
+  $$\text{attacking\_finishing} + \text{skill\_dribbling} + \text{power\_shot\_power} - \text{defending\_standing\_tackle} - \text{defending\_sliding\_tackle} - \text{mentality\_interceptions}$$
+- `defensive_composite`:
+  Mean of `defending_standing_tackle`, `defending_sliding_tackle`, and `mentality_interceptions`.
+- `playmaking_composite`:
+  Mean of `skill_long_passing`, `attacking_short_passing`, and `mentality_vision`.
 
-## What actually improved, and what didn't
+## What Actually Improved, and What Didn't
 
 Switching from the synthetic 6-column dataset to this one fixed:
 - **CB**: 0% recall → 92% recall
@@ -132,7 +141,7 @@ What it did *not* fix, on purpose:
   Messi: "RW, CF, ST"). Multi-label modeling against that field is a
   possible follow-up if single-label accuracy isn't enough.
 
-## Possible next steps
+## Possible Next Steps
 
 - Merge L/R pairs into unified roles (fullback, wide-mid, winger) — should
   push accuracy well past 75-80%, since that's the confusion driving most of
