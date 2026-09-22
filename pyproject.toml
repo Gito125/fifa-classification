@@ -1,0 +1,20 @@
+[project]
+name = "fifa-knn-classification"
+version = "0.1.0"
+description = "KNN classification of FIFA player positions from skill attributes"
+readme = "README.md"
+authors = [
+    { name = "Ogwang G. Gideon", email = "radigidi@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "joblib>=1.6.0",
+    "matplotlib>=3.11.1",
+    "numpy>=2.5.3",
+    "pandas>=3.0.5",
+    "scikit-learn>=1.9.0",
+    "seaborn>=0.13.2",
+]
+
+[tool.uv]
+package = false
