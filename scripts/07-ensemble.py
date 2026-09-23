@@ -8,75 +8,96 @@ import os
 
 import joblib
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import seaborn as sns
+from sklearn.ensemble import RandomForestClassifier, VotingClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.model_selection import GridSearchCV
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
 
-# Load the pre-processed testing dataset
+# Load the pre-processed training and testing datasets
+train_df = pd.read_csv('data/processed/train_data.csv')
 test_df = pd.read_csv('data/processed/test_data.csv')
 
-# Separate features and target (team_position) variable for testing dataset
+# Separate features and target (team_position) variable for training and testing datasets
+X_train = train_df.drop('team_position', axis=1)
+y_train = train_df['team_position']
 X_test = test_df.drop('team_position', axis=1)
 y_test = test_df['team_position']
 
-# Load the saved models from the models directory
-model_paths = {
-    'KNN': './models/v1/knn_model_v1.pkl',
-    'Logistic Regression': './models/v1/logistic_regression_model_v1.pkl',
-    'Random Forest': './models/v1/random_forest_model_v1.pkl',
-    'SVM': './models/v1/svm_model_v1.pkl',
+# Create a pipeline that includes data scaling and a soft-voting ensemble classifier
+ensemble = VotingClassifier(
+    estimators=[
+        ('knn', KNeighborsClassifier(n_neighbors=4, metric='manhattan', weights='uniform')),
+        ('logistic', LogisticRegression(max_iter=2000, C=14, solver='lbfgs')),
+        ('random_forest', RandomForestClassifier(max_depth=None, min_samples_leaf=1, n_estimators=900)),
+        ('svm', SVC(C=17, gamma='scale', kernel='rbf', probability=True)),
+    ],
+    voting='soft',
+)
+pipeline = Pipeline([
+    ('scaler', StandardScaler()),
+    ('ensemble', ensemble),
+])
+
+# Define the parameter grid for hyperparameter tuning
+param_grid = {
+    'ensemble__weights': [
+        (1, 1, 1, 1),
+        (2, 1, 1, 1),
+        (1, 2, 1, 1),
+        (1, 1, 2, 1),
+        (1, 1, 1, 2),
+    ],
 }
-saved_models = {
-    model_name: joblib.load(model_path)
-    for model_name, model_path in model_paths.items()
-}
 
-# Generate predictions with each saved model
-model_predictions = {
-    model_name: model.predict(X_test)
-    for model_name, model in saved_models.items()
-}
+# Perform grid search with cross-validation
+grid_search = GridSearchCV(pipeline, param_grid, cv=5, scoring='f1_macro', n_jobs=-1)
 
-# Combine the saved model predictions using hard voting
-prediction_matrix = np.array(list(model_predictions.values()))
-ensemble_predictions = pd.DataFrame(prediction_matrix).mode(axis=0).iloc[0].to_numpy()
+# Fit the grid search on the training data
+grid_search.fit(X_train, y_train)
 
-# Evaluate each saved model and the hard-voting ensemble on the test set
-print('=============================================================\nSaved Model Results:')
-for model_name, y_pred in model_predictions.items():
-    print(f'\n{model_name}:')
-    print('Accuracy: {:.2f}'.format(accuracy_score(y_test, y_pred)))
-    print('Precision: {:.2f}'.format(precision_score(y_test, y_pred, average='macro', zero_division=0)))
-    print('Recall: {:.2f}'.format(recall_score(y_test, y_pred, average='macro', zero_division=0)))
-    print('F1 Score: {:.2f}'.format(f1_score(y_test, y_pred, average='macro', zero_division=0)))
-    print('Confusion Matrix:\n', confusion_matrix(y_test, y_pred))
-    print('Classification Report:\n', classification_report(y_test, y_pred, zero_division=0))
+# Get the best model from the grid search
+best_model = grid_search.best_estimator_
 
-print('\nHard-Voting Ensemble:')
-print('Accuracy: {:.2f}'.format(accuracy_score(y_test, ensemble_predictions)))
-print('Precision: {:.2f}'.format(precision_score(y_test, ensemble_predictions, average='macro', zero_division=0)))
-print('Recall: {:.2f}'.format(recall_score(y_test, ensemble_predictions, average='macro', zero_division=0)))
-print('F1 Score: {:.2f}'.format(f1_score(y_test, ensemble_predictions, average='macro', zero_division=0)))
-print('Confusion Matrix:\n', confusion_matrix(y_test, ensemble_predictions))
-print('Classification Report:\n', classification_report(y_test, ensemble_predictions, zero_division=0))
+print('=============================================================\nGrid Search Results:')
+print('Best parameters found: ', grid_search.best_params_)
+print('Best cross-validation F1 score: {:.2f}'.format(grid_search.best_score_))
 
-# Graphical representation of the ensemble results (optional)
+# Evaluate the best model on the test set
+y_pred = best_model.predict(X_test)
+print('=============================================================\nEvaluating the best model on the test set:')
+print('Accuracy: {:.2f}'.format(accuracy_score(y_test, y_pred)))
+print('Precision: {:.2f}'.format(precision_score(y_test, y_pred, average='macro')))
+print('Recall: {:.2f}'.format(recall_score(y_test, y_pred, average='macro')))
+print('F1 Score: {:.2f}'.format(f1_score(y_test, y_pred, average='macro')))
+print('Confusion Matrix:\n', confusion_matrix(y_test, y_pred))
+print('Classification Report:\n', classification_report(y_test, y_pred))
+
+# Save the best model to a file for future use
+os.makedirs('models/v1', exist_ok=True)
+joblib.dump(best_model, 'models/v1/ensemble_model_v1.pkl')
+
+# Graphical representation of the results (optional)
 print('=============================================================\nGraphical representation of the results:')
 plt.figure(figsize=(10, 6))
 # Plotting the confusion matrix
 sns.heatmap(
-    confusion_matrix(y_test, ensemble_predictions),
+    confusion_matrix(y_test, y_pred),
     annot=True,
     fmt='d',
     cmap='Blues',
-    xticklabels=sorted(y_test.unique()),
-    yticklabels=sorted(y_test.unique()),
+    xticklabels=[str(label) for label in best_model.classes_],
+    yticklabels=[str(label) for label in best_model.classes_],
 )
-plt.title('Hard-Voting Ensemble Confusion Matrix')
+plt.title('Confusion Matrix')
 plt.xlabel('Predicted')
 plt.ylabel('Actual')
-os.makedirs('figures', exist_ok=True)
+os.makedirs('figures/v1', exist_ok=True)
 plt.savefig('figures/v1/ensemble_v1_confusion_matrix.png')
 plt.show()

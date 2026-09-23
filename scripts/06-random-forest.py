@@ -60,7 +60,7 @@ print('Confusion Matrix:\n', confusion_matrix(y_test, y_pred))
 print('Classification Report:\n', classification_report(y_test, y_pred))
 
 # Save the best model to a file for future use
-os.makedirs('models', exist_ok=True)
+os.makedirs('models/v1', exist_ok=True)
 joblib.dump(best_model, 'models/v1/random_forest_model_v1.pkl')
 
 # Graphical representation of the results (optional)
@@ -78,6 +78,6 @@ sns.heatmap(
 plt.title('Confusion Matrix')
 plt.xlabel('Predicted')
 plt.ylabel('Actual')
-os.makedirs('figures', exist_ok=True)
+os.makedirs('figures/v1', exist_ok=True)
 plt.savefig('figures/v1/random_forest_v1_confusion_matrix.png')
 plt.show()

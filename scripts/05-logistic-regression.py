@@ -27,7 +27,7 @@ y_train = train_df['team_position']
 X_test = test_df.drop('team_position', axis=1)
 y_test = test_df['team_position']
 
-# Create a pipeline that includes data scaling and Logistic Regression classifier
+# Create a pipeline that includes data scaling and Logistic Resgression classifier
 pipeline = Pipeline([
     ('scaler', StandardScaler()),
     ('logistic', LogisticRegression(max_iter=2000)),
@@ -83,5 +83,5 @@ plt.title('Confusion Matrix')
 plt.xlabel('Predicted')
 plt.ylabel('Actual')
 os.makedirs('figures', exist_ok=True)
-plt.savefig('figures/v1/logistic_regression_v1_confusion_matrix.png')
+plt.savefig('figures/logistic_regression_v1_confusion_matrix.png')
 plt.show()
