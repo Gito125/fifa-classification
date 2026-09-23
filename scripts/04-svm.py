@@ -35,13 +35,14 @@ pipeline = Pipeline([
 
 # Define the parameter grid for hyperparameter tuning
 param_grid = {
-    'svm__C': [0.1, 1, 10],
+    # 'svm__C': [0.1, 1, 10],
+    'svm__C': [15, 16, 17, 18, 19],
     'svm__kernel': ['rbf', 'linear'],
     'svm__gamma': ['scale', 'auto'],
 }
 
 # Perform grid search with cross-validation
-grid_search = GridSearchCV(pipeline, param_grid, cv=5, scoring='f1_macro', n_jobs=-1)
+grid_search = GridSearchCV(pipeline, param_grid, cv=5, scoring='recall_macro', n_jobs=-1)
 
 # Fit the grid search on the training data
 grid_search.fit(X_train, y_train)

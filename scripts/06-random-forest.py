@@ -30,7 +30,8 @@ pipeline = RandomForestClassifier(random_state=42, n_jobs=-1)
 
 # Define the parameter grid for hyperparameter tuning
 param_grid = {
-    'n_estimators': [200, 400],
+    # 'n_estimators': [200, 400, 600],
+    'n_estimators': [700, 800, 900],
     'max_depth': [None, 20, 40],
     'min_samples_leaf': [1, 2],
 }
