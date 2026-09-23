@@ -27,8 +27,8 @@ position_counts = df['team_position'].value_counts()
 print(position_counts)
 
 # Create the 'figures' directory if it doesn't exist
-if not os.path.exists('figures/understand_data'):
-    os.makedirs('figures/understand_data')
+if not os.path.exists('figures/v1/understand_data'):
+    os.makedirs('figures/v1/understand_data')
 
 # Graphically display the crutial points and save the figures in the 'figures' directory
 plt.figure(figsize=(10, 6))
@@ -37,7 +37,7 @@ sns.histplot(data=df, x='age', bins=30, kde=True)
 plt.title('Distribution of Player Ages')
 plt.xlabel('Age')
 plt.ylabel('Frequency')
-plt.savefig('figures/understand_data/age_distribution.png')
+plt.savefig('figures/v1/understand_data/age_distribution.png')
 plt.show()
 
 # Plot the distribution of player positions
@@ -46,5 +46,5 @@ sns.countplot(data=df, x='team_position', order=df['team_position'].value_counts
 plt.title('Distribution of Player Positions')
 plt.xlabel('Position')
 plt.ylabel('Count')
-plt.savefig('figures/understand_data/position_distribution.png')
+plt.savefig('figures/v1/understand_data/position_distribution.png')
 plt.show()

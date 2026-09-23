@@ -64,7 +64,7 @@ print('Classification Report:\n', classification_report(y_test, y_pred))
 
 # Save the best model to a file for future use
 os.makedirs('models', exist_ok=True)
-joblib.dump(best_model, 'models/knn_model_v1.pkl')
+joblib.dump(best_model, 'models/v1/knn_model_v1.pkl')
 
 # Graphical representation of the results (optional)
 ## k representation
@@ -84,7 +84,7 @@ plt.title('Confusion Matrix')
 plt.xlabel('Predicted')
 plt.ylabel('Actual')
 os.makedirs('figures', exist_ok=True)
-plt.savefig('figures/knn_v1_confusion_matrix.png')
+plt.savefig('figures/v1/knn_v1_confusion_matrix.png')
 plt.show()
 # Plotting the F1 score for different values of k
 plt.figure(figsize=(10, 6))
@@ -99,5 +99,5 @@ plt.xlabel('Number of Neighbors (k)')
 plt.ylabel('Mean F1 Score (Cross-Validation)')
 plt.xticks(k_values)
 plt.grid()
-plt.savefig('figures/knn_v1_f1_score_vs_k.png')
+plt.savefig('figures/v1/knn_v1_f1_score_vs_k.png')
 plt.show()

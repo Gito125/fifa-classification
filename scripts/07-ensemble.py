@@ -23,10 +23,10 @@ y_test = test_df['team_position']
 
 # Load the saved models from the models directory
 model_paths = {
-    'KNN': './models/knn_model_v1.pkl',
-    'Logistic Regression': './models/logistic_regression_model_v1.pkl',
-    'Random Forest': './models/random_forest_model_v1.pkl',
-    'SVM': './models/svm_model_v1.pkl',
+    'KNN': './models/v1/knn_model_v1.pkl',
+    'Logistic Regression': './models/v1/logistic_regression_model_v1.pkl',
+    'Random Forest': './models/v1/random_forest_model_v1.pkl',
+    'SVM': './models/v1/svm_model_v1.pkl',
 }
 saved_models = {
     model_name: joblib.load(model_path)
@@ -78,5 +78,5 @@ plt.title('Hard-Voting Ensemble Confusion Matrix')
 plt.xlabel('Predicted')
 plt.ylabel('Actual')
 os.makedirs('figures', exist_ok=True)
-plt.savefig('figures/ensemble_v1_confusion_matrix.png')
+plt.savefig('figures/v1/ensemble_v1_confusion_matrix.png')
 plt.show()

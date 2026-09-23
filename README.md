@@ -12,7 +12,7 @@ with much cleaner per-position behavior. Full history below.
 fifa-20-classification/
 ├── data/
 │   ├── fifa-20-data.csv        # Cleaned dataset: 7,348 rows × 52 columns
-├── models/                     # Serialized trained model artifacts (.joblib)
+├── models/v1/                  # Serialized trained model artifacts (.joblib)
 ├── results/                    # Generated evaluation charts, confusion matrices & metrics
 ├── scripts/                    # Pipeline scripts (data preparation, model training)
 │   ├── prepare_data.py         # Cleans raw data, filters roles & engineers features
