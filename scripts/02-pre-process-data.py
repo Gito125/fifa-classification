@@ -142,8 +142,8 @@ position_mapping = {
     'CB': 'CB',
     'LB': 'LB',
     'RB': 'RB',
-    'LWB': 'LWB',
-    'RWB': 'RWB',
+    'LWB': 'LB',
+    'RWB': 'RB',
     'LCM': 'CM',
     'RCM': 'CM',
     'CM': 'CM',
@@ -153,8 +153,8 @@ position_mapping = {
     'CAM': 'CAM',
     'LAM': 'CAM',
     'RAM': 'CAM',
-    'LM': 'LM',
-    'RM': 'RM',
+    'LM': 'CM',
+    'RM': 'CM',
     'LW': 'LW',
     'RW': 'RW',
     'LS': 'ST',
@@ -162,7 +162,7 @@ position_mapping = {
     'ST': 'ST',
     'LF': 'LF',
     'RF': 'RF',
-    'CF': 'CF',
+    'CF': 'ST',
 }
 
 df['team_position'] = df['team_position'].map(position_mapping)
