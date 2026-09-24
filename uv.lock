@@ -59,7 +59,7 @@ wheels = [
 ]
 
 [[package]]
-name = "fifa-knn-classification"
+name = "fifa-20-classification"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
