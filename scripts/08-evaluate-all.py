@@ -5,11 +5,12 @@
 
 import argparse
 import os
+from typing import cast
 import joblib
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import seaborn as sns
+from matplotlib.patches import Rectangle
 from sklearn.metrics import accuracy_score, classification_report, f1_score, precision_score, recall_score
 
 from common import get_paths, load_config, load_data
@@ -25,7 +26,9 @@ def evaluate_model(model, X_test, y_test):
     rec = recall_score(y_test, y_pred, average='macro', zero_division=0)
     f1 = f1_score(y_test, y_pred, average='macro', zero_division=0)
 
-    report = classification_report(y_test, y_pred, output_dict=True, zero_division=0)
+    report = cast(dict[str, dict[str, float]], classification_report(
+        y_test, y_pred, output_dict=True, zero_division=0
+    ))
     class_f1s = {cls: report[cls]['f1-score'] for cls in TARGET_CLASSES if cls in report}
 
     return {
@@ -52,6 +55,7 @@ def plot_model_comparison(results_df, figures_dir, version):
     plt.grid(axis='y', linestyle='--', alpha=0.7)
 
     for p in ax.patches:
+        p = cast(Rectangle, p)
         height = p.get_height()
         if height > 0:
             ax.annotate(f'{height:.2f}', (p.get_x() + p.get_width() / 2., height),
@@ -98,7 +102,7 @@ def plot_feature_importance(rf_model, feature_names, figures_dir, version):
     }).sort_values('Importance', ascending=False).head(25)
 
     plt.figure(figsize=(10, 8))
-    sns.barplot(data=feat_df, y='Feature', x='Importance', palette='viridis')
+    sns.barplot(data=feat_df, y='Feature', x='Importance', hue='Feature', palette='viridis', legend=False)
     plt.title(f'Top 25 Feature Importances - Random Forest ({version})', fontsize=14, pad=12)
     plt.xlabel('Gini Importance')
     plt.ylabel('')
@@ -114,15 +118,15 @@ def plot_height_weight_distribution(test_df, figures_dir, version):
     if 'height_cm' not in test_df.columns or 'weight_kg' not in test_df.columns:
         return
 
-    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+    _, axes = plt.subplots(1, 2, figsize=(16, 6))
 
-    sns.boxplot(data=test_df, x='team_position', y='height_cm', order=TARGET_CLASSES, ax=axes[0], palette='Blues')
+    sns.boxplot(data=test_df, x='team_position', y='height_cm', order=TARGET_CLASSES, ax=axes[0], hue='team_position', palette='Blues', legend=False)
     axes[0].set_title('Height (cm) Distribution by Position')
     axes[0].set_xlabel('Position')
     axes[0].set_ylabel('Height (cm)')
     axes[0].grid(axis='y', linestyle='--', alpha=0.5)
 
-    sns.boxplot(data=test_df, x='team_position', y='weight_kg', order=TARGET_CLASSES, ax=axes[1], palette='Greens')
+    sns.boxplot(data=test_df, x='team_position', y='weight_kg', order=TARGET_CLASSES, ax=axes[1], hue='team_position', palette='Greens', legend=False)
     axes[1].set_title('Weight (kg) Distribution by Position')
     axes[1].set_xlabel('Position')
     axes[1].set_ylabel('Weight (kg)')
@@ -136,48 +140,75 @@ def plot_height_weight_distribution(test_df, figures_dir, version):
     print(f'Saved: {out_path}')
 
 
-def plot_version_comparison():
-    """Compare v1 vs v1.1 overall metrics if both version configs exist."""
-    v1_cfg_path = 'configs/v1.json'
-    v1_1_cfg_path = 'configs/v1.1.json'
-    if not (os.path.exists(v1_cfg_path) and os.path.exists(v1_1_cfg_path)):
+def plot_version_comparison(figures_dir):
+    """Dynamically compare Macro F1 across all versions that have trained models."""
+    import glob
+
+    cfg_files = sorted(glob.glob('configs/*.json'))
+    if len(cfg_files) < 2:
         return
 
-    # Check if models exist in both
-    v1_models_dir = 'models/v1'
-    v1_1_models_dir = 'models/v1.1'
-    if not os.path.exists(os.path.join(v1_models_dir, 'ensemble_model_v1.pkl')) or \
-       not os.path.exists(os.path.join(v1_1_models_dir, 'ensemble_model_v1.1.pkl')):
-        return
-
-    v1_cfg = load_config(v1_cfg_path)
-    v1_1_cfg = load_config(v1_1_cfg_path)
-
-    _, _, X_test_v1, y_test_v1 = load_data(v1_cfg)
-    _, _, X_test_v1_1, y_test_v1_1 = load_data(v1_1_cfg)
-
-    model_names = ['knn', 'logistic_regression', 'random_forest', 'svm', 'ensemble']
+    model_keys = ['knn', 'logistic_regression', 'random_forest', 'svm', 'ensemble']
     labels = ['KNN', 'Logistic Reg', 'Random Forest', 'SVM', 'Ensemble']
 
     data = []
-    for m_name, label in zip(model_names, labels):
-        m1 = joblib.load(os.path.join(v1_models_dir, f'{m_name}_model_v1.pkl'))
-        m2 = joblib.load(os.path.join(v1_1_models_dir, f'{m_name}_model_v1.1.pkl'))
+    version_summary = {}
 
-        f1_v1 = f1_score(y_test_v1, m1.predict(X_test_v1), average='macro', zero_division=0)
-        f1_v1_1 = f1_score(y_test_v1_1, m2.predict(X_test_v1_1), average='macro', zero_division=0)
+    for cfg_file in cfg_files:
+        try:
+            cfg = load_config(cfg_file)
+        except Exception:
+            continue
 
-        data.append({'Model': label, 'Version': 'v1 (51 feats)', 'Macro F1': f1_v1})
-        data.append({'Model': label, 'Version': 'v1.1 (77 feats)', 'Macro F1': f1_v1_1})
+        ver = cfg.get('model_version')
+        if not ver:
+            continue
+
+        m_dir = cfg['paths']['models_dir']
+        test_path = os.path.join(cfg['paths']['processed_dir'], 'test_data.csv')
+        if not os.path.exists(test_path):
+            continue
+
+        try:
+            test_df = pd.read_csv(test_path)
+            X_test = test_df.drop('team_position', axis=1)
+            y_test = test_df['team_position']
+        except Exception:
+            continue
+
+        ver_scores = {}
+        for m_key, lbl in zip(model_keys, labels):
+            m_path = os.path.join(m_dir, f'{m_key}_model_{ver}.pkl')
+            if os.path.exists(m_path):
+                try:
+                    m = joblib.load(m_path)
+                    score = f1_score(y_test, m.predict(X_test), average='macro', zero_division=0)
+                    data.append({'Model': lbl, 'Version': ver, 'Macro F1': score})
+                    ver_scores[lbl] = score
+                except Exception:
+                    pass
+
+        if ver_scores:
+            version_summary[ver] = ver_scores
+
+    # Only plot if at least 2 versions have evaluated models
+    if len(version_summary) < 2:
+        return
+
+    print('\nMulti-Version Comparison Matrix (Macro F1):')
+    matrix_df = pd.DataFrame(version_summary)
+    print(matrix_df.to_string())
 
     comp_df = pd.DataFrame(data)
-    plt.figure(figsize=(10, 6))
-    ax = sns.barplot(data=comp_df, x='Model', y='Macro F1', hue='Version', palette=['#4c72b0', '#55a868'])
-    plt.title('Version Comparison: Macro F1 (v1 vs v1.1)', fontsize=14, pad=12)
-    plt.ylim(0, 1.0)
+    plt.figure(figsize=(11, 6))
+    ax = sns.barplot(data=comp_df, x='Model', y='Macro F1', hue='Version', palette='Set2')
+    plt.title('Version Comparison: Macro F1 Across Models', fontsize=14, pad=12)
+    plt.ylim(0, 1.05)
     plt.grid(axis='y', linestyle='--', alpha=0.7)
 
     for p in ax.patches:
+        if not isinstance(p, Rectangle):
+            continue
         h = p.get_height()
         if h > 0:
             ax.annotate(f'{h:.2f}', (p.get_x() + p.get_width() / 2., h),
@@ -185,11 +216,11 @@ def plot_version_comparison():
                         textcoords='offset points')
 
     plt.tight_layout()
-    os.makedirs('figures/v1.1', exist_ok=True)
-    out_path = 'figures/v1.1/v1_vs_v1_1_comparison.png'
+    out_path = os.path.join(figures_dir, 'version_comparison_all.png')
     plt.savefig(out_path)
     plt.close()
     print(f'Saved: {out_path}')
+
 
 
 def main():
@@ -202,7 +233,7 @@ def main():
     version = config.get('model_version', 'v1')
 
     print(f'=== Comprehensive Evaluation ({version}) ===')
-    X_train, y_train, X_test, y_test = load_data(config)
+    X_train, _, X_test, y_test = load_data(config)
 
     # Dictionary of models to load
     model_definitions = {
@@ -259,8 +290,8 @@ def main():
     test_df = pd.read_csv(test_df_path)
     plot_height_weight_distribution(test_df, paths['figures_dir'], version)
 
-    # Check if we can also plot v1 vs v1.1
-    plot_version_comparison()
+    # Check if we can also plot multi-version comparison
+    plot_version_comparison(paths['figures_dir'])
 
     print('\nEvaluation and visualizations completed successfully.')
 
