@@ -65,8 +65,11 @@ def build_base_estimators(config):
     return estimators
 
 
+from sklearn.impute import SimpleImputer
+
+
 def build_pipeline(config, weights=None):
-    """Construct pipeline containing standard scaler and soft-voting ensemble."""
+    """Construct pipeline containing imputer, standard scaler, and soft-voting ensemble."""
     estimators = build_base_estimators(config)
     ensemble = VotingClassifier(
         estimators=estimators,
@@ -74,6 +77,7 @@ def build_pipeline(config, weights=None):
         weights=weights,
     )
     return Pipeline([
+        ('imputer', SimpleImputer(strategy='median')),
         ('scaler', StandardScaler()),
         ('ensemble', ensemble),
     ])

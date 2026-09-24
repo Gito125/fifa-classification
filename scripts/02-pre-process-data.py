@@ -108,6 +108,10 @@ def clean_dataframe(df, config):
     df[GOALKEEPER_COLUMNS] = df[GOALKEEPER_COLUMNS].fillna(0)
     df[NON_GOALKEEPER_COLUMNS] = df[NON_GOALKEEPER_COLUMNS].fillna(0)
 
+    # Handle stats introduced in later FIFA editions (e.g. composure introduced in FIFA 17, missing in 15 & 16)
+    if 'mentality_composure' in df.columns:
+        df['mentality_composure'] = df['mentality_composure'].fillna(df['overall'])
+
     # 3. Filter age outliers
     df = df[(df['age'] >= age_min) & (df['age'] <= age_max)].copy()
 
@@ -168,6 +172,10 @@ def clean_dataframe(df, config):
     all_drops = set(always_drop + optional_drops + transformed_drops)
     existing_drops = [c for c in all_drops if c in df.columns]
     df = df.drop(columns=existing_drops)
+
+    # Final safety net: fill any remaining numerical NaNs with 0
+    numeric_cols = df.select_dtypes(include=['number']).columns
+    df[numeric_cols] = df[numeric_cols].fillna(0)
 
     return df
 

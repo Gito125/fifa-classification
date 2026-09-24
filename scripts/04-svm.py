@@ -6,6 +6,7 @@
 import argparse
 import os
 import joblib
+from sklearn.impute import SimpleImputer
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -33,6 +34,7 @@ def build_pipeline(params=None):
         svm = SVC(**clean_params)
 
     return Pipeline([
+        ('imputer', SimpleImputer(strategy='median')),
         ('scaler', StandardScaler()),
         ('svm', svm),
     ])

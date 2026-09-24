@@ -7,6 +7,7 @@ import argparse
 import os
 import joblib
 import matplotlib.pyplot as plt
+from sklearn.impute import SimpleImputer
 from sklearn.model_selection import GridSearchCV
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
@@ -32,6 +33,7 @@ def build_pipeline(params=None):
         knn = KNeighborsClassifier(**clean_params)
 
     return Pipeline([
+        ('imputer', SimpleImputer(strategy='median')),
         ('scaler', StandardScaler()),
         ('knn', knn),
     ])
