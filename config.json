@@ -1,4 +1,4 @@
 {
-  "active_version": "v1.1",
-  "comment": "Set active_version to 'v1' or 'v1.1'. All scripts will automatically use this version without needing --config."
+  "active_version": "v1.2",
+  "comment": "Set the active version to v1.2 for the FIFA 15-21 position classification project. This version includes updated model parameters and preprocessing configurations."
 }
