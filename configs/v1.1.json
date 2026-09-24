@@ -39,6 +39,10 @@
       "svm__C": 24,
       "svm__gamma": "scale",
       "svm__kernel": "rbf"
+    },
+    "logistic_regression": {
+      "logistic__C": 14,
+      "logistic__solver": "lbfgs"
     }
   }
 }

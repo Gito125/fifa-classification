@@ -59,7 +59,8 @@ def main():
         print('Running hyperparameter tuning (GridSearchCV)...')
         pipeline = build_pipeline()
         param_grid = {
-            'logistic__C': [0.1, 1.0, 5, 10, 14, 20],
+            # 'logistic__C': [0.1, 1.0, 5, 10, 14, 20],
+            'logistic__C': range(14,24),
             'logistic__solver': ['lbfgs'],
         }
         grid_search = GridSearchCV(pipeline, param_grid, cv=5, scoring='recall_macro', n_jobs=-1)
