@@ -43,6 +43,11 @@
     "logistic_regression": {
       "logistic__C": 14,
       "logistic__solver": "lbfgs"
+    },
+    "random_forest": {
+      "max_depth": null,
+      "min_samples_leaf": 1,
+      "n_estimators": 500
     }
   }
 }
