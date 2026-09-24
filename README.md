@@ -70,40 +70,34 @@ Dependencies include `pandas`, `numpy`, `scikit-learn`, `matplotlib`, `seaborn`,
 
 ---
 
-## How to Select a Version (v1 vs v1.1)
+## Master Config File (`config.json`)
 
-All scripts are **config-driven**. You select which version to run by passing the `--config` parameter:
+To avoid typing `--config` every time you run a script, the project includes a master [`config.json`](config.json) at the root directory:
 
-- For **v1** (baseline 51 features):
-  ```bash
-  --config configs/v1.json
-  ```
-- For **v1.1** (engineered physical, demographic & trait features):
-  ```bash
-  --config configs/v1.1.json
-  ```
+```json
+{
+  "active_version": "v1.1",
+  "comment": "Set active_version to 'v1' or 'v1.1'. All scripts will automatically use this version without needing --config."
+}
+```
 
-When you pass a config file:
-1. The script reads `"model_version"` and displays it at the top of the terminal.
-2. Processed datasets automatically go to `data/processed/<version>/`.
-3. Model artifacts automatically save to `models/<version>/`.
-4. Figures and charts automatically save to `figures/<version>/`.
-5. Hyperparameters automatically save and load from that specific JSON config.
-
-*(If you omit `--config`, scripts default to `configs/v1.json`).*
+### How It Works:
+- **No need to type `--config`**: When you run any script, it reads `config.json` and automatically uses whichever version is set as `"active_version"`.
+- **To switch versions**: Simply change `"active_version": "v1.1"` to `"v1"` in `config.json`.
+- **Manual override (optional)**: If you ever want to run a specific version for just one command, you can still pass `--config configs/v1.json`.
 
 ---
 
 ## How to Run the Pipeline (Step-by-Step)
 
-Here is the exact step-by-step workflow for running **v1.1**:
+With `config.json` set to `"active_version": "v1.1"`, you can run all commands directly without typing any config flags:
 
 ### Step 1: Data Preprocessing
 
 Cleans the raw FIFA 20 data, removes target leakage columns, maps positions into 10 classes, and engineers the new physical and trait features:
 
 ```bash
-uv run python scripts/02-pre-process-data.py --config configs/v1.1.json
+uv run python scripts/02-pre-process-data.py
 ```
 
 **Output**:
@@ -118,7 +112,7 @@ Every model script provides two modes:
 
 | Mode | What It Does | When to Use |
 |---|---|---|
-| **`--tune`** | Runs 5-fold cross-validation `GridSearchCV`, finds the best parameters, **automatically writes them to the config file**, and saves the model. | Use the **first time** you run a version, or when searching for new parameters. |
+| **`--tune`** | Runs 5-fold cross-validation `GridSearchCV`, finds the best parameters, **automatically writes them to configs/v1.1.json**, and saves the model. | Use the **first time** you run a version, or when searching for new parameters. |
 | **`--train`** | **Directly loads** the best parameters from the config file and trains the model in seconds without running grid search. | Use for **fast retraining**, testing, or reproducing results. |
 
 #### Tuning and Training the Models for v1.1
@@ -127,27 +121,27 @@ Run the tuning commands one by one:
 
 ```bash
 # 1. K-Nearest Neighbors
-uv run python scripts/03-knn.py --config configs/v1.1.json --tune
+uv run python scripts/03-knn.py --tune
 
 # 2. Support Vector Machine
-uv run python scripts/04-svm.py --config configs/v1.1.json --tune
+uv run python scripts/04-svm.py --tune
 
 # 3. Logistic Regression
-uv run python scripts/05-logistic-regression.py --config configs/v1.1.json --tune
+uv run python scripts/05-logistic-regression.py --tune
 
 # 4. Random Forest
-uv run python scripts/06-random-forest.py --config configs/v1.1.json --tune
+uv run python scripts/06-random-forest.py --tune
 
 # 5. Soft-Voting Ensemble
 # (Automatically reads the best parameters of the 4 models above from configs/v1.1.json and tunes the voting weights)
-uv run python scripts/07-ensemble.py --config configs/v1.1.json --tune
+uv run python scripts/07-ensemble.py --tune
 ```
 
 > **Note on Fast Retraining**:  
 > Once tuned, the parameters are saved in `configs/v1.1.json`. You can retrain any model instantly without searching:
 > ```bash
-> uv run python scripts/03-knn.py --config configs/v1.1.json --train
-> uv run python scripts/07-ensemble.py --config configs/v1.1.json --train
+> uv run python scripts/03-knn.py --train
+> uv run python scripts/07-ensemble.py --train
 > ```
 
 ---
@@ -157,8 +151,9 @@ uv run python scripts/07-ensemble.py --config configs/v1.1.json --tune
 After training the models, run the evaluation script:
 
 ```bash
-uv run python scripts/08-evaluate-all.py --config configs/v1.1.json
+uv run python scripts/08-evaluate-all.py
 ```
+
 
 This script:
 1. Loads all 5 trained models from `models/v1.1/`.

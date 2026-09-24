@@ -40,7 +40,7 @@ def build_pipeline(params=None):
 
 def main():
     parser = argparse.ArgumentParser(description='Train or tune Logistic Regression classifier.')
-    parser.add_argument('--config', type=str, default='configs/v1.json', help='Path to configuration JSON.')
+    parser.add_argument('--config', type=str, default=None, help='Path to configuration JSON. Defaults to active_version in config.json.')
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--tune', action='store_true', help='Run GridSearchCV and save best parameters to config.')
     group.add_argument('--train', action='store_true', help='Train directly using saved parameters from config.')
@@ -70,7 +70,7 @@ def main():
         print('Best cross-validation score: {:.4f}'.format(grid_search.best_score_))
 
         # Save winning params back to config file
-        save_best_params(args.config, 'logistic_regression', best_params)
+        save_best_params(paths['config_file'], 'logistic_regression', best_params)
         model = grid_search.best_estimator_
 
     else:

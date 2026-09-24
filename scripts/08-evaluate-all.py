@@ -194,7 +194,7 @@ def plot_version_comparison():
 
 def main():
     parser = argparse.ArgumentParser(description='Evaluate all models in a version and generate charts.')
-    parser.add_argument('--config', type=str, default='configs/v1.json', help='Path to configuration JSON.')
+    parser.add_argument('--config', type=str, default=None, help='Path to configuration JSON. Defaults to active_version in config.json.')
     args = parser.parse_args()
 
     config = load_config(args.config)

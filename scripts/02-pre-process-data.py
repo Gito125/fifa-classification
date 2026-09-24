@@ -184,7 +184,7 @@ def load_file_list(files):
 
 def main():
     parser = argparse.ArgumentParser(description='Preprocess FIFA data based on version config.')
-    parser.add_argument('--config', type=str, default='configs/v1.json', help='Path to configuration JSON file.')
+    parser.add_argument('--config', type=str, default=None, help='Path to configuration JSON. Defaults to active_version in config.json.')
     args = parser.parse_args()
 
     config = load_config(args.config)

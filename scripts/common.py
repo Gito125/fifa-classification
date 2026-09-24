@@ -17,10 +17,35 @@ from sklearn.metrics import (
 )
 
 
-def load_config(config_path):
-    """Load configuration dictionary from a JSON file."""
-    with open(config_path, 'r') as f:
+def resolve_config_path(config_arg=None):
+    """Resolve config file path from command line argument or master config.json."""
+    if config_arg:
+        return config_arg
+
+    # Check for master config.json at project root
+    if os.path.exists('config.json'):
+        with open('config.json', 'r') as f:
+            master = json.load(f)
+            if 'active_config' in master:
+                return master['active_config']
+            elif 'active_version' in master:
+                return f"configs/{master['active_version']}.json"
+
+    # Default fallback
+    return 'configs/v1.json'
+
+
+def load_config(config_path=None):
+    """Load configuration dictionary from a JSON file, resolving master default if omitted."""
+    resolved_path = resolve_config_path(config_path)
+    with open(resolved_path, 'r') as f:
         config = json.load(f)
+
+    # Ensure config tracks its own resolved path
+    if 'paths' not in config:
+        config['paths'] = {}
+    config['paths']['config_file'] = resolved_path
+
     return config
 
 
