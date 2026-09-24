@@ -59,7 +59,7 @@ def main():
         print('Running hyperparameter tuning (GridSearchCV)...')
         pipeline = build_pipeline()
         param_grid = {
-            'svm__C': [15, 16, 17, 18, 19],
+            'svm__C': [18, 22, 24, *range(25, 29)],  # Expanded range for tuning
             'svm__kernel': ['rbf'],
             'svm__gamma': ['scale', 'auto'],
         }

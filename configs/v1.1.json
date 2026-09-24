@@ -16,7 +16,10 @@
     "random_state": 42
   },
   "preprocessing": {
-    "age_range": [16, 40],
+    "age_range": [
+      16,
+      40
+    ],
     "features": {
       "include_height_weight": true,
       "include_preferred_foot": true,
@@ -26,5 +29,16 @@
       "include_player_traits": true
     }
   },
-  "best_params": {}
+  "best_params": {
+    "knn": {
+      "knn__metric": "manhattan",
+      "knn__n_neighbors": 3,
+      "knn__weights": "distance"
+    },
+    "svm": {
+      "svm__C": 24,
+      "svm__gamma": "scale",
+      "svm__kernel": "rbf"
+    }
+  }
 }

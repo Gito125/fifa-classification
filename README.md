@@ -8,14 +8,12 @@ A machine-learning project predicting football player positions from in-game ski
 
 - [Project Structure](#project-structure)
 - [Setup with uv](#setup-with-uv)
-- [How to Select a Version (v1 vs v1.1)](#how-to-select-a-version-v1-vs-v11)
-- [How to Run the Pipeline (Step-by-Step)](#how-to-run-the-pipeline-step-by-step)
-  - [Step 1: Data Preprocessing](#step-1-data-preprocessing)
-  - [Step 2: Model Training (`--tune` vs `--train`)](#step-2-model-training---tune-vs---train)
-  - [Step 3: Multi-Model Evaluation & Comparison](#step-3-multi-model-evaluation--comparison)
-- [Version Overview](#version-overview)
+- [Master Config File (config.json)](#master-config-file-configjson)
+- [How to Run Version 1.1 (Step-by-Step)](#how-to-run-the-pipeline-step-by-step)
+- [How to Run Version 1.2 (Multi-Season Validation)](#how-to-run-version-12-multi-season-validation)
+- [Version Overview (v1, v1.1, v1.2)](#version-overview)
 - [Available Models](#available-models)
-- [Future Roadmap (v1.2 & v2)](#future-roadmap)
+- [Future Roadmap (v2 Hierarchical Classification)](#future-roadmap)
 
 ---
 
@@ -23,9 +21,11 @@ A machine-learning project predicting football player positions from in-game ski
 
 ```text
 fifa-20-classification/
+├── config.json                       # Master version selector
 ├── configs/                          # Config-driven execution files
 │   ├── v1.json                       # Version 1 baseline config (51 features)
-│   └── v1.1.json                     # Version 1.1 feature-engineered config (77 features)
+│   ├── v1.1.json                     # Version 1.1 feature-engineered config (77 features)
+│   └── v1.2.json                     # Version 1.2 multi-season temporal config (FIFA 15-20 train / 21 test)
 ├── data/
 │   ├── raw/                          # Raw datasets from FIFA 15 to FIFA 21
 │   │   ├── players_15.csv ... players_21.csv
@@ -168,14 +168,18 @@ This script:
 
 ---
 
+---
+
 ## Version Overview
 
 ### Version 1 (Baseline)
+- **Data**: Single 80/20 random split on `data/raw/players_20.csv`.
 - **Features (51)**: Overall, potential, value, wage, weak foot, skill moves, 6 aggregate stats, 6 GK stats, and 28 detailed technical/movement/mentality sub-skills.
 - **Config**: [`configs/v1.json`](configs/v1.json)
 - **Detailed Documentation**: See [`models/v1/README.md`](models/v1/README.md) for full v1 evaluation metrics and feature documentation.
 
 ### Version 1.1 (Engineered Features)
+- **Data**: Single 80/20 random split on `data/raw/players_20.csv` (direct ablation against v1).
 - **Features (77)**: All 51 baseline features + 26 newly engineered features:
   - `height_cm`, `weight_kg`: Raw physical attributes.
   - `preferred_foot_right`: Binary footedness (Right=1, Left=0).
@@ -184,6 +188,80 @@ This script:
   - `international_reputation`: Player global profile rating (1–5).
   - 18 high-signal `player_traits` (e.g. `Comes For Crosses`, `Playmaker`, `Dives Into Tackles`, `Power Header`, etc.) encoded as multi-hot indicators.
 - **Config**: [`configs/v1.1.json`](configs/v1.1.json)
+
+### Version 1.2 (Multi-Season Temporal Validation)
+- **Data Split**: Out-of-time / by-files temporal validation:
+  - **Train Data**: FIFA 15, 16, 17, 18, 19, and 20 concatenated (~50,000+ single-position players).
+  - **Test Data**: FIFA 21 held out as the unseen future season (~10,000 single-position players).
+- **Features (77)**: Full feature-engineered set (physical traits, work rates, footedness, body type, and player traits).
+- **Config**: [`configs/v1.2.json`](configs/v1.2.json)
+
+---
+
+## How to Run Version 1.2 (Multi-Season Validation)
+
+Version 1.2 allows you to train your models on **6 historical seasons** (FIFA 15–20) and evaluate how well they generalize to the **upcoming season** (FIFA 21).
+
+### Step 1: Set Active Version in `config.json`
+
+Open [`config.json`](config.json) at the root and change `"active_version"` to `"v1.2"`:
+
+```json
+{
+  "active_version": "v1.2",
+  "comment": "Set active_version to 'v1', 'v1.1', or 'v1.2'. All scripts will automatically use this version without needing --config."
+}
+```
+
+### Step 2: Preprocess the Multi-Season Data
+
+Run the preprocessing script:
+
+```bash
+uv run python scripts/02-pre-process-data.py
+```
+
+**What happens**:
+- Automatically reads all 6 historical raw files (`players_15.csv` through `players_20.csv`), cleans each dataset, and combines them into `data/processed/v1.2/train_data.csv`.
+- Cleans `players_21.csv` and saves it into `data/processed/v1.2/test_data.csv`.
+
+### Step 3: Train and Tune the Models on the Multi-Season Dataset
+
+Run tuning for each algorithm:
+
+```bash
+# 1. K-Nearest Neighbors
+uv run python scripts/03-knn.py --tune
+
+# 2. Support Vector Machine
+uv run python scripts/04-svm.py --tune
+
+# 3. Logistic Regression
+uv run python scripts/05-logistic-regression.py --tune
+
+# 4. Random Forest
+uv run python scripts/06-random-forest.py --tune
+
+# 5. Soft-Voting Ensemble (combines tuned base models)
+uv run python scripts/07-ensemble.py --tune
+```
+
+> **Fast Retrain Mode**:  
+> Once tuned, parameters are stored in `configs/v1.2.json`. You can retrain any model directly without searching:
+> ```bash
+> uv run python scripts/03-knn.py --train
+> uv run python scripts/07-ensemble.py --train
+> ```
+
+### Step 4: Evaluate Against Unseen FIFA 21 Players
+
+Generate the full evaluation report and charts:
+
+```bash
+uv run python scripts/08-evaluate-all.py
+```
+
+All models will be saved to `models/v1.2/`, datasets to `data/processed/v1.2/`, and comparison figures to `figures/v1.2/`.
 
 ---
 
@@ -200,11 +278,6 @@ All 5 algorithms classify players into 10 position classes (`CAM`, `CB`, `CDM`, 
 ---
 
 ## Future Roadmap
-
-### v1.2: Multi-Season Out-of-Time Validation
-- Train models on historical seasons (**FIFA 15 through FIFA 20**, ~50,000+ player-seasons).
-- Test on an unseen future season (**FIFA 21**, ~10,000 players).
-- Supported directly in `scripts/02-pre-process-data.py` using `"split_strategy": "by_files"`.
 
 ### v2: Two-Stage Hierarchical Classification
 - **Stage 1**: Predict broad position group (`GK`, `DEF`, `MID`, `ATT`).
