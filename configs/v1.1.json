@@ -1,0 +1,30 @@
+{
+  "model_version": "v1.1",
+  "description": "FIFA 20 position classification with engineered physical, demographic, and trait features",
+  "paths": {
+    "processed_dir": "data/processed/v1.1",
+    "models_dir": "models/v1.1",
+    "figures_dir": "figures/v1.1",
+    "config_file": "configs/v1.1.json"
+  },
+  "data_sources": {
+    "split_strategy": "random_split",
+    "raw_files": [
+      "data/raw/players_20.csv"
+    ],
+    "test_size": 0.2,
+    "random_state": 42
+  },
+  "preprocessing": {
+    "age_range": [16, 40],
+    "features": {
+      "include_height_weight": true,
+      "include_preferred_foot": true,
+      "include_work_rate": true,
+      "include_body_type": true,
+      "include_international_reputation": true,
+      "include_player_traits": true
+    }
+  },
+  "best_params": {}
+}

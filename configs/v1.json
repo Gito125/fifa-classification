@@ -1,0 +1,55 @@
+{
+  "model_version": "v1",
+  "description": "Baseline FIFA 20 position classification with 51 features",
+  "paths": {
+    "processed_dir": "data/processed/v1",
+    "models_dir": "models/v1",
+    "figures_dir": "figures/v1",
+    "config_file": "configs/v1.json"
+  },
+  "data_sources": {
+    "split_strategy": "random_split",
+    "raw_files": [
+      "data/raw/players_20.csv"
+    ],
+    "test_size": 0.2,
+    "random_state": 42
+  },
+  "preprocessing": {
+    "age_range": [16, 40],
+    "features": {
+      "include_height_weight": false,
+      "include_preferred_foot": false,
+      "include_work_rate": false,
+      "include_body_type": false,
+      "include_international_reputation": false,
+      "include_player_traits": false
+    }
+  },
+  "best_params": {
+    "knn": {
+      "knn__n_neighbors": 4,
+      "knn__weights": "uniform",
+      "knn__metric": "manhattan"
+    },
+    "logistic_regression": {
+      "logistic__C": 14,
+      "logistic__solver": "lbfgs",
+      "logistic__max_iter": 2000
+    },
+    "random_forest": {
+      "random_forest__n_estimators": 900,
+      "random_forest__max_depth": null,
+      "random_forest__min_samples_leaf": 1
+    },
+    "svm": {
+      "svm__C": 17,
+      "svm__gamma": "scale",
+      "svm__kernel": "rbf",
+      "svm__probability": true
+    },
+    "ensemble": {
+      "ensemble__weights": [1, 2, 1, 1]
+    }
+  }
+}

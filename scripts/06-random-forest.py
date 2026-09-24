@@ -1,83 +1,98 @@
-# ==========================================================================
-# This script implements the Random Forest algorithm for classification tasks.
-# It includes functions to train the model, make predictions, and evaluate its performance.
-# ===========================================================================
+# ==============================================================================
+# Random Forest Classifier for player position classification.
+# Supports --tune (hyperparameter search) and --train (fast direct training).
+# ==============================================================================
 
-# Import necessary libraries for Random Forest implementation
+import argparse
 import os
-
 import joblib
-import matplotlib.pyplot as plt
-import pandas as pd
-import seaborn as sns
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-from sklearn.metrics import f1_score, precision_score, recall_score
 from sklearn.model_selection import GridSearchCV
 
-# Load the pre-processed training and testing datasets
-train_df = pd.read_csv('data/processed/train_data.csv')
-test_df = pd.read_csv('data/processed/test_data.csv')
-
-# Separate features and target (team_position) variable for training and testing datasets
-X_train = train_df.drop('team_position', axis=1)
-y_train = train_df['team_position']
-X_test = test_df.drop('team_position', axis=1)
-y_test = test_df['team_position']
-
-# Create a Random Forest classifier
-pipeline = RandomForestClassifier(random_state=42, n_jobs=-1)
-
-# Define the parameter grid for hyperparameter tuning
-param_grid = {
-    # 'n_estimators': [200, 400, 600],
-    'n_estimators': [700, 800, 900],
-    'max_depth': [None, 20, 40],
-    'min_samples_leaf': [1, 2],
-}
-
-# Perform grid search with cross-validation
-grid_search = GridSearchCV(pipeline, param_grid, cv=5, scoring='f1_macro', n_jobs=-1)
-
-# Fit the grid search on the training data
-grid_search.fit(X_train, y_train)
-
-# Get the best model from the grid search
-best_model = grid_search.best_estimator_
-
-print('=============================================================\nGrid Search Results:')
-print('Best parameters found: ', grid_search.best_params_)
-print('Best cross-validation F1 score: {:.2f}'.format(grid_search.best_score_))
-
-# Evaluate the best model on the test set
-y_pred = best_model.predict(X_test)
-print('=============================================================\nEvaluating the best model on the test set:')
-print('Accuracy: {:.2f}'.format(accuracy_score(y_test, y_pred)))
-print('Precision: {:.2f}'.format(precision_score(y_test, y_pred, average='macro')))
-print('Recall: {:.2f}'.format(recall_score(y_test, y_pred, average='macro')))
-print('F1 Score: {:.2f}'.format(f1_score(y_test, y_pred, average='macro')))
-print('Confusion Matrix:\n', confusion_matrix(y_test, y_pred))
-print('Classification Report:\n', classification_report(y_test, y_pred))
-
-# Save the best model to a file for future use
-os.makedirs('models/v1', exist_ok=True)
-joblib.dump(best_model, 'models/v1/random_forest_model_v1.pkl')
-
-# Graphical representation of the results (optional)
-print('=============================================================\nGraphical representation of the results:')
-plt.figure(figsize=(10, 6))
-# Plotting the confusion matrix
-sns.heatmap(
-    confusion_matrix(y_test, y_pred),
-    annot=True,
-    fmt='d',
-    cmap='Blues',
-    xticklabels=[str(label) for label in best_model.classes_],
-    yticklabels=[str(label) for label in best_model.classes_],
+from common import (
+    evaluate_predictions,
+    get_paths,
+    load_config,
+    load_data,
+    save_best_params,
+    save_confusion_matrices,
 )
-plt.title('Confusion Matrix')
-plt.xlabel('Predicted')
-plt.ylabel('Actual')
-os.makedirs('figures/v1', exist_ok=True)
-plt.savefig('figures/v1/random_forest_v1_confusion_matrix.png')
-plt.show()
+
+
+def build_model(params=None):
+    """Instantiate RandomForestClassifier with optional parameters."""
+    if params is None:
+        return RandomForestClassifier(random_state=42, n_jobs=-1)
+
+    # Strip 'random_forest__' prefix if present from grid search parameter keys
+    clean_params = {k.replace('random_forest__', ''): v for k, v in params.items()}
+    if 'random_state' not in clean_params:
+        clean_params['random_state'] = 42
+    if 'n_jobs' not in clean_params:
+        clean_params['n_jobs'] = -1
+
+    return RandomForestClassifier(**clean_params)
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Train or tune Random Forest classifier.')
+    parser.add_argument('--config', type=str, default='configs/v1.json', help='Path to configuration JSON.')
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--tune', action='store_true', help='Run GridSearchCV and save best parameters to config.')
+    group.add_argument('--train', action='store_true', help='Train directly using saved parameters from config.')
+    args = parser.parse_args()
+
+    config = load_config(args.config)
+    paths = get_paths(config)
+    version = config.get('model_version', 'v1')
+
+    print(f'=== Random Forest ({version}) ===')
+    X_train, y_train, X_test, y_test = load_data(config)
+
+    model_file = os.path.join(paths['models_dir'], f'random_forest_model_{version}.pkl')
+
+    if args.tune:
+        print('Running hyperparameter tuning (GridSearchCV)...')
+        base_rf = build_model()
+        param_grid = {
+            'n_estimators': [500, 700, 900],
+            'max_depth': [None, 30],
+            'min_samples_leaf': [1, 2],
+        }
+        grid_search = GridSearchCV(base_rf, param_grid, cv=5, scoring='f1_macro', n_jobs=-1)
+        grid_search.fit(X_train, y_train)
+
+        best_params = grid_search.best_params_
+        print('Best parameters found:', best_params)
+        print('Best cross-validation score: {:.4f}'.format(grid_search.best_score_))
+
+        # Save winning params back to config file
+        save_best_params(args.config, 'random_forest', best_params)
+        model = grid_search.best_estimator_
+
+    else:
+        # Direct training mode
+        saved_params = config.get('best_params', {}).get('random_forest')
+        if not saved_params:
+            raise ValueError(f"No saved hyperparameters found for 'random_forest' in {args.config}. Run with --tune first.")
+
+        print(f'Training directly with parameters: {saved_params}')
+        model = build_model(saved_params)
+        model.fit(X_train, y_train)
+
+    # Save fitted model artifact
+    joblib.dump(model, model_file)
+    print(f'Saved model artifact: {model_file}')
+
+    # Evaluate on held-out test set
+    print('\nEvaluating model on test dataset:')
+    y_pred = model.predict(X_test)
+    evaluate_predictions(y_test, y_pred)
+
+    # Save confusion matrices
+    class_labels = list(model.classes_)
+    save_confusion_matrices(y_test, y_pred, class_labels, paths['figures_dir'], 'Random_Forest', version)
+
+
+if __name__ == '__main__':
+    main()
