@@ -48,6 +48,14 @@
       "max_depth": null,
       "min_samples_leaf": 1,
       "n_estimators": 500
+    },
+    "ensemble": {
+      "ensemble__weights": [
+        1,
+        2,
+        1,
+        2
+      ]
     }
   }
 }
