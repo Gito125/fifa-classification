@@ -28,5 +28,4 @@ __pycache__/
 Thumbs.db
 
 # Large Raw Data (keep directory structure tracked via .gitkeep)
-data/raw/*
-!data/raw/.gitkeep
+data/
