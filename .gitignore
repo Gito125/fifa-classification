@@ -29,4 +29,8 @@ init/
 Thumbs.db
 
 # Large Raw Data (keep directory structure tracked via .gitkeep)
-data/
+data/raw/**/*
+
+# Trained ML models
+models/**/*.pkl
+models/**/*.joblib
