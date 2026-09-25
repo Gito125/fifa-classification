@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from matplotlib.patches import Patch
+from matplotlib.patches import Patch, Rectangle
 
 # Ensure scripts directory is on sys.path for common imports
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -193,12 +193,15 @@ def analyze_missingness_patterns(df):
     missing_counts = df.isnull().sum()
     missing_pct = (missing_counts / len(df)) * 100
     missing_df = pd.DataFrame({'Missing_Count': missing_counts, 'Missing_Pct': missing_pct})
-    missing_df = missing_df[missing_df['Missing_Count'] > 0].sort_values(by='Missing_Count', ascending=False)
+    filtered_missing = missing_df.loc[missing_df['Missing_Count'] > 0]
+    sorted_missing = filtered_missing.sort_values(by='Missing_Count', ascending=False)
 
-    print(f'Columns with missing values: {len(missing_df)} out of {df.shape[1]}')
+    print(f'Columns with missing values: {len(sorted_missing)} out of {df.shape[1]}')
     print('\nTop 15 columns with missing values:')
-    for col, row in missing_df.head(15).iterrows():
-        print(f"  - {col:<26}: {int(row['Missing_Count']):>8,} ({row['Missing_Pct']:>5.1f}%)")
+    for row in sorted_missing.head(15).itertuples():
+        missing_cnt = int(getattr(row, 'Missing_Count'))
+        missing_pct_val = float(getattr(row, 'Missing_Pct'))
+        print(f"  - {row.Index:<26}: {missing_cnt:>8,} ({missing_pct_val:>5.1f}%)")
 
     # Quantify Goalkeeper vs Outfield structural missingness
     gk_count = df['player_positions'].str.startswith('GK', na=False).sum()
@@ -324,12 +327,13 @@ def plot_target_class_distribution(df_clean, output_dir, version, show=False):
 
     total = len(single_df)
     for p in ax.patches:
-        height = p.get_height()
-        pct = (height / total) * 100
-        ax.annotate(f'{int(height):,}\n({pct:.1f}%)',
-                    (p.get_x() + p.get_width() / 2., height),
-                    ha='center', va='bottom', fontsize=9.5, fontweight='bold',
-                    xytext=(0, 4), textcoords='offset points')
+        if isinstance(p, Rectangle):
+            height = p.get_height()
+            pct = (height / total) * 100
+            ax.annotate(f'{int(height):,}\n({pct:.1f}%)',
+                        (p.get_x() + p.get_width() / 2., height),
+                        ha='center', va='bottom', fontsize=9.5, fontweight='bold',
+                        xytext=(0, 4), textcoords='offset points')
 
     ax.set_title(f'Target Class Distribution - Clean Single-Position Players ({version}, N = {total:,})',
                  fontsize=14, fontweight='bold', pad=15)
@@ -367,10 +371,11 @@ def plot_squad_role_vs_tactical(df_clean, output_dir, show=False):
     ax1.set_ylabel('Player Count', fontsize=11, fontweight='bold')
     total1 = len(df_clean)
     for p in ax1.patches:
-        h = p.get_height()
-        ax1.annotate(f'{int(h):,}\n({h / total1 * 100:.1f}%)',
-                     (p.get_x() + p.get_width() / 2., h),
-                     ha='center', va='bottom', fontsize=8.5, xytext=(0, 3), textcoords='offset points')
+        if isinstance(p, Rectangle):
+            h = p.get_height()
+            ax1.annotate(f'{int(h):,}\n({h / total1 * 100:.1f}%)',
+                         (p.get_x() + p.get_width() / 2., h),
+                         ha='center', va='bottom', fontsize=8.5, xytext=(0, 3), textcoords='offset points')
     ax1.set_ylim(0, top_team_pos.max() * 1.15)
 
     single_count = df_clean['is_single_position'].sum()
@@ -391,7 +396,7 @@ def plot_squad_role_vs_tactical(df_clean, output_dir, show=False):
     ax2.set_title("'player_positions': Specialization vs Multi-Position Ambiguity", fontsize=12, fontweight='bold')
 
     plt.suptitle("Why 'player_positions' is Required for Position Classification", fontsize=15, fontweight='bold', y=0.98)
-    plt.tight_layout(rect=[0, 0, 1, 0.94])
+    plt.tight_layout(rect=(0.0, 0.0, 1.0, 0.94))
     path = os.path.join(output_dir, '02_squad_role_vs_tactical_position.png')
     plt.savefig(path)
     if show:
@@ -422,7 +427,7 @@ def plot_core_attributes_by_position(df_clean, output_dir, show=False):
         ax.set_ylim(10, 100)
 
     fig.suptitle('Core FIFA Attribute Profiles Across Outfield Positions', fontsize=16, fontweight='bold', y=0.98)
-    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    plt.tight_layout(rect=(0.0, 0.0, 1.0, 0.95))
     path = os.path.join(output_dir, '03_core_attributes_by_position.png')
     plt.savefig(path)
     if show:
@@ -466,7 +471,7 @@ def plot_physical_profiles(df_clean, output_dir, show=False):
     ax2.legend(loc='lower left')
 
     fig.suptitle('Physical Dimension Breakdown: GKs & CBs vs Agile Wingers & Fullbacks', fontsize=15, fontweight='bold', y=0.98)
-    plt.tight_layout(rect=[0, 0, 1, 0.94])
+    plt.tight_layout(rect=(0.0, 0.0, 1.0, 0.94))
     path = os.path.join(output_dir, '04_physical_profile_by_position.png')
     plt.savefig(path)
     if show:
@@ -525,7 +530,7 @@ def plot_age_distribution_and_curves(df_clean, output_dir, show=False):
     ax2.set_ylabel('Age', fontsize=11, fontweight='bold')
 
     plt.suptitle('Player Demographics: Age Distribution & Tactical Longevity', fontsize=15, fontweight='bold', y=0.98)
-    plt.tight_layout(rect=[0, 0, 1, 0.94])
+    plt.tight_layout(rect=(0.0, 0.0, 1.0, 0.94))
     path = os.path.join(output_dir, '06_age_distribution_and_career_curves.png')
     plt.savefig(path)
     legacy_path = os.path.join(output_dir, 'age_distribution.png')
@@ -554,8 +559,8 @@ def plot_preferred_foot(df_clean, output_dir, show=False):
     bars_right = ax.barh(order, foot_counts['Right'], left=foot_counts['Left'], color='#3498db', label='Right Foot', edgecolor='#333333')
 
     for idx, pos in enumerate(order):
-        left_pct = foot_counts.loc[pos, 'Left']
-        right_pct = foot_counts.loc[pos, 'Right']
+        left_pct = float(foot_counts.loc[pos, 'Left'])
+        right_pct = float(foot_counts.loc[pos, 'Right'])
         if left_pct > 12:
             ax.text(left_pct / 2, idx, f'{left_pct:.1f}%', va='center', ha='center', color='white', fontweight='bold', fontsize=9.5)
         if right_pct > 12:
@@ -666,7 +671,7 @@ def plot_positional_radars(df_clean, output_dir, show=False):
         ax.legend(loc='upper right', bbox_to_anchor=(1.15, 1.15))
 
     fig.suptitle('Tactical Archetype Comparisons: Polar Skill Profiles', fontsize=16, fontweight='bold', y=0.98)
-    plt.tight_layout(rect=[0, 0.05, 1, 0.93])
+    plt.tight_layout(rect=(0.0, 0.05, 1.0, 0.93))
     path = os.path.join(output_dir, '09_position_radar_profiles.png')
     plt.savefig(path)
     if show:
@@ -704,7 +709,7 @@ def plot_v1_detailed_skills(df_clean, output_dir, show=False):
             ax.set_ylim(10, 100)
 
     fig.suptitle('Baseline FIFA 20 In-Game Technical Skill Breakdown across Positions', fontsize=15, fontweight='bold', y=0.98)
-    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    plt.tight_layout(rect=(0.0, 0.0, 1.0, 0.95))
     path = os.path.join(output_dir, '10_detailed_skills_by_position.png')
     plt.savefig(path)
     if show:
@@ -736,12 +741,13 @@ def plot_v1_1_work_rate(df_clean, output_dir, show=False):
     b1 = ax.bar(x - width/2, rates['wr_att'], width, label='High Attacking Work Rate (%)', color='#e74c3c', edgecolor='#333333')
     b2 = ax.bar(x + width/2, rates['wr_def'], width, label='High Defensive Work Rate (%)', color='#2980b9', edgecolor='#333333')
 
-    for bar in b1 + b2:
-        h = bar.get_height()
-        if h > 2:
-            ax.annotate(f'{h:.1f}%',
-                        (bar.get_x() + bar.get_width() / 2., h),
-                        ha='center', va='bottom', fontsize=8.5, fontweight='bold', xytext=(0, 2), textcoords='offset points')
+    for container in (b1, b2):
+        for bar in container:
+            h = bar.get_height()
+            if h > 2:
+                ax.annotate(f'{h:.1f}%',
+                            (bar.get_x() + bar.get_width() / 2., h),
+                            ha='center', va='bottom', fontsize=8.5, fontweight='bold', xytext=(0, 2), textcoords='offset points')
 
     ax.set_title('Engineered Feature: High Attacking vs High Defensive Work Rate by Position (v1.1)', fontsize=14, fontweight='bold', pad=15)
     ax.set_xticks(x)
@@ -777,9 +783,9 @@ def plot_v1_1_body_type(df_clean, output_dir, show=False):
     bars_stocky = ax.bar(TARGET_CLASSES, bt_counts['Stocky'], bottom=bt_counts['Lean'] + bt_counts['Normal'], label='Stocky', color='#e67e22', edgecolor='#333333')
 
     for idx, pos in enumerate(TARGET_CLASSES):
-        l_val = bt_counts.loc[pos, 'Lean']
-        n_val = bt_counts.loc[pos, 'Normal']
-        s_val = bt_counts.loc[pos, 'Stocky']
+        l_val = float(bt_counts.loc[pos, 'Lean'])
+        n_val = float(bt_counts.loc[pos, 'Normal'])
+        s_val = float(bt_counts.loc[pos, 'Stocky'])
         if l_val > 10:
             ax.text(idx, l_val / 2, f'{l_val:.0f}%', ha='center', va='center', color='white', fontweight='bold', fontsize=8.5)
         if n_val > 15:
@@ -853,11 +859,12 @@ def plot_v1_2_seasonal_volume(df_clean, output_dir, show=False):
     b1 = ax.bar(x - width/2, raw_counts.values, width, label='Raw Total Players', color='#34495e', edgecolor='#333333')
     b2 = ax.bar(x + width/2, single_counts.values, width, label='Clean Single-Position Players', color='#27ae60', edgecolor='#333333')
 
-    for bar in b1 + b2:
-        h = bar.get_height()
-        ax.annotate(f'{int(h):,}',
-                    (bar.get_x() + bar.get_width() / 2., h),
-                    ha='center', va='bottom', fontsize=9, fontweight='bold', xytext=(0, 3), textcoords='offset points')
+    for container in (b1, b2):
+        for bar in container:
+            h = bar.get_height()
+            ax.annotate(f'{int(h):,}',
+                        (bar.get_x() + bar.get_width() / 2., h),
+                        ha='center', va='bottom', fontsize=9, fontweight='bold', xytext=(0, 3), textcoords='offset points')
 
     ax.set_title('Multi-Season Dataset Volume: FIFA 15 through FIFA 21 (v1.2)', fontsize=14, fontweight='bold', pad=15)
     ax.set_xticks(x)
@@ -893,11 +900,12 @@ def plot_v1_2_temporal_stability(df_clean, output_dir, show=False):
     b1 = ax.bar(x - width/2, ct['Train (FIFA 15-20)'], width, label='Train Set (FIFA 15-20, N ~ 57k)', color='#2980b9', edgecolor='#333333')
     b2 = ax.bar(x + width/2, ct['Test (FIFA 21)'], width, label='Test Set (FIFA 21, N ~ 9.5k)', color='#e67e22', edgecolor='#333333')
 
-    for bar in b1 + b2:
-        h = bar.get_height()
-        ax.annotate(f'{h:.1f}%',
-                    (bar.get_x() + bar.get_width() / 2., h),
-                    ha='center', va='bottom', fontsize=8.5, fontweight='bold', xytext=(0, 2), textcoords='offset points')
+    for container in (b1, b2):
+        for bar in container:
+            h = bar.get_height()
+            ax.annotate(f'{h:.1f}%',
+                        (bar.get_x() + bar.get_width() / 2., h),
+                        ha='center', va='bottom', fontsize=8.5, fontweight='bold', xytext=(0, 2), textcoords='offset points')
 
     ax.set_title('Temporal Class Distribution Stability: Train (FIFA 15-20) vs Unseen Test (FIFA 21)', fontsize=14, fontweight='bold', pad=15)
     ax.set_xticks(x)
