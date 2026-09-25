@@ -8,6 +8,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
+init/
 
 # Jupyter Notebook Checkpoints
 .ipynb_checkpoints/
