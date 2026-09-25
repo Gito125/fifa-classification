@@ -28,9 +28,11 @@ init/
 .DS_Store
 Thumbs.db
 
-# Large Raw Data (keep directory structure tracked via .gitkeep)
-data/raw/**/*
+# Data directories
+data/
+*.csv
 
-# Trained ML models
-models/**/*.pkl
-models/**/*.joblib
+# Model binaries
+*.pkl
+*.joblib
+*.h5
