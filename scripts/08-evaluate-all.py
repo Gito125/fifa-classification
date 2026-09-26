@@ -193,7 +193,7 @@ def plot_version_comparison(figures_dir):
             continue
 
         try:
-            test_df = pd.read_csv(test_path)
+            test_df = pd.read_csv(filepath_or_buffer=test_path)
             X_test = test_df.drop('team_position', axis=1)
             y_test = test_df['team_position']
         except Exception:
@@ -207,9 +207,21 @@ def plot_version_comparison(figures_dir):
                     m = load_model(m_path)
                     if m is None:
                         continue
-                    score = f1_score(y_test, m.predict(X_test), average='macro', zero_division=0)
-                    data.append({'Model': lbl, 'Version': ver, 'Macro F1': score})
-                    ver_scores[lbl] = score
+                    y_pred = m.predict(X_test)
+                    acc = accuracy_score(y_test, y_pred)
+                    prec = precision_score(y_test, y_pred, average='macro', zero_division=0)
+                    rec = recall_score(y_test, y_pred, average='macro', zero_division=0)
+                    f1 = f1_score(y_test, y_pred, average='macro', zero_division=0)
+
+                    data.append({
+                        'Model': lbl,
+                        'Version': ver,
+                        'Accuracy': acc,
+                        'Precision': prec,
+                        'Recall': rec,
+                        'Macro F1': f1,
+                    })
+                    ver_scores[lbl] = f1
                 except Exception:
                     pass
 
@@ -227,6 +239,8 @@ def plot_version_comparison(figures_dir):
     print(matrix_df.to_string())
 
     comp_df = pd.DataFrame(data)
+
+    # 1. Macro F1 comparison plot
     plt.figure(figsize=(11, 6))
     ax = sns.barplot(
         data=comp_df,
@@ -252,11 +266,64 @@ def plot_version_comparison(figures_dir):
     plt.tight_layout()
     out_path = os.path.join(figures_dir, 'version_comparison_all.png')
     plt.savefig(out_path)
+    alt_f1_path = os.path.join(figures_dir, 'version_comparison_macro_f1.png')
+    plt.savefig(alt_f1_path)
     # Also save a copy to top-level figures/ directory if figures_dir is a subfolder
     if os.path.isdir('figures') and os.path.abspath(figures_dir) != os.path.abspath('figures'):
         plt.savefig(os.path.join('figures', 'version_comparison_all.png'))
+        plt.savefig(os.path.join('figures', 'version_comparison_macro_f1.png'))
     plt.close()
     print(f'Saved: {out_path}')
+    print(f'Saved: {alt_f1_path}')
+
+    # 2. Multi-metric comparison plot (Accuracy, Precision, Recall, Macro F1)
+    fig, axes = plt.subplots(2, 2, figsize=(15, 11))
+    metrics_map = [
+        ('Accuracy', 'Accuracy Across Models', axes[0, 0]),
+        ('Precision', 'Macro Precision Across Models', axes[0, 1]),
+        ('Recall', 'Macro Recall Across Models', axes[1, 0]),
+        ('Macro F1', 'Macro F1 Across Models', axes[1, 1]),
+    ]
+
+    for metric_col, title, ax_m in metrics_map:
+        sns.barplot(
+            data=comp_df,
+            x='Model',
+            y=metric_col,
+            hue='Version',
+            hue_order=version_order,
+            palette='Set2',
+            ax=ax_m,
+        )
+        ax_m.set_title(title, fontsize=13, pad=10)
+        ax_m.set_ylim(0, 1.08)
+        ax_m.set_ylabel(metric_col)
+        ax_m.set_xlabel('')
+        ax_m.grid(axis='y', linestyle='--', alpha=0.7)
+        for p in ax_m.patches:
+            if not isinstance(p, Rectangle):
+                continue
+            h = p.get_height()
+            if h > 0:
+                ax_m.annotate(f'{h:.2f}', (p.get_x() + p.get_width() / 2., h),
+                              ha='center', va='bottom', fontsize=8, xytext=(0, 2),
+                              textcoords='offset points')
+
+    # Single unified legend for the 2x2 grid
+    handles, labels_list = axes[0, 0].get_legend_handles_labels()
+    for ax_m in axes.flat:
+        if ax_m.get_legend() is not None:
+            ax_m.get_legend().remove()
+    fig.legend(handles, labels_list, loc='upper center', bbox_to_anchor=(0.5, 0.99), ncol=len(version_order), fontsize=11, title='Model Version')
+    fig.suptitle('Version Comparison: All Metrics Across Models', fontsize=16, y=1.02)
+    plt.tight_layout()
+
+    out_metrics_path = os.path.join(figures_dir, 'version_comparison_all_metrics.png')
+    plt.savefig(out_metrics_path, bbox_inches='tight')
+    if os.path.isdir('figures') and os.path.abspath(figures_dir) != os.path.abspath('figures'):
+        plt.savefig(os.path.join('figures', 'version_comparison_all_metrics.png'), bbox_inches='tight')
+    plt.close()
+    print(f'Saved: {out_metrics_path}')
 
 
 
