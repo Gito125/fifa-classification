@@ -4,6 +4,7 @@
 
 import json
 import os
+import joblib
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -81,11 +82,25 @@ def get_paths(config):
     return paths
 
 
-def load_data(config):
-    """Load processed training and testing datasets according to config."""
+def ensure_preprocessed_data(config):
+    """Ensure that train_data.csv and test_data.csv exist for the config, generating them if needed."""
     paths = get_paths(config)
     train_path = os.path.join(paths['processed_dir'], 'train_data.csv')
     test_path = os.path.join(paths['processed_dir'], 'test_data.csv')
+
+    if not os.path.exists(train_path) or not os.path.exists(test_path):
+        ver = config.get('model_version', 'current version')
+        print(f"Processed dataset missing for {ver} in {paths['processed_dir']}. Running preprocessing automatically...")
+        import importlib
+        preprocessor = importlib.import_module('02-pre-process-data')
+        preprocessor.preprocess_data(config)
+
+    return train_path, test_path
+
+
+def load_data(config):
+    """Load processed training and testing datasets according to config."""
+    train_path, test_path = ensure_preprocessed_data(config)
 
     train_df = pd.read_csv(train_path)
     test_df = pd.read_csv(test_path)
@@ -159,3 +174,40 @@ def save_confusion_matrices(y_test, y_pred, class_labels, figures_dir, model_nam
     plt.close()
 
     print(f'Saved figures:\n  - {raw_path}\n  - {norm_path}')
+
+
+def patch_model_compatibility(model):
+    """Ensure backward compatibility for estimators pickled with older scikit-learn versions."""
+    if model is None:
+        return model
+
+    # In scikit-learn 1.6, SimpleImputer used `_fit_dtype`, whereas 1.9+ requires `_fill_dtype`
+    if hasattr(model, '_fit_dtype') and not hasattr(model, '_fill_dtype'):
+        model._fill_dtype = model._fit_dtype
+
+    # Recursively patch composite estimators / pipelines / voting ensembles / search objects
+    if hasattr(model, 'named_steps'):
+        for step in model.named_steps.values():
+            patch_model_compatibility(step)
+    if hasattr(model, 'steps'):
+        for _, step in model.steps:
+            patch_model_compatibility(step)
+    if hasattr(model, 'estimators_'):
+        for est in model.estimators_:
+            patch_model_compatibility(est)
+    if hasattr(model, 'named_estimators_'):
+        for est in model.named_estimators_.values():
+            patch_model_compatibility(est)
+    if hasattr(model, 'best_estimator_'):
+        patch_model_compatibility(model.best_estimator_)
+    if hasattr(model, 'final_estimator_'):
+        patch_model_compatibility(model.final_estimator_)
+
+    return model
+
+
+def load_model(filepath):
+    """Load a pickled model artifact and patch cross-version compatibility attributes."""
+    model = joblib.load(filepath)
+    return patch_model_compatibility(model)
+

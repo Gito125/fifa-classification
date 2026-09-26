@@ -13,7 +13,7 @@ import seaborn as sns
 from matplotlib.patches import Rectangle
 from sklearn.metrics import accuracy_score, classification_report, f1_score, precision_score, recall_score
 
-from common import get_paths, load_config, load_data
+from common import ensure_preprocessed_data, get_paths, load_config, load_data, load_model
 
 TARGET_CLASSES = ['CAM', 'CB', 'CDM', 'CM', 'GK', 'LB', 'LW', 'RB', 'RW', 'ST']
 
@@ -140,6 +140,17 @@ def plot_height_weight_distribution(test_df, figures_dir, version):
     print(f'Saved: {out_path}')
 
 
+def parse_version_key(ver):
+    """Parse version string (e.g. 'v1.2') into numeric tuple for descending sorting."""
+    import re
+    match = re.search(r'v?(\d+)(?:\.(\d+))?', str(ver))
+    if match:
+        major = int(match.group(1))
+        minor = int(match.group(2)) if match.group(2) is not None else 0
+        return (major, minor)
+    return (0, 0)
+
+
 def plot_version_comparison(figures_dir):
     """Dynamically compare Macro F1 across all versions that have trained models."""
     import glob
@@ -148,23 +159,35 @@ def plot_version_comparison(figures_dir):
     if len(cfg_files) < 2:
         return
 
+    configs = []
+    for cfg_file in cfg_files:
+        try:
+            cfg = load_config(cfg_file)
+            if cfg.get('model_version'):
+                configs.append(cfg)
+        except Exception:
+            continue
+
+    # Order versions descending: v1.2, v1.1, v1
+    configs.sort(key=lambda c: parse_version_key(c.get('model_version', '')), reverse=True)
+
     model_keys = ['knn', 'logistic_regression', 'random_forest', 'svm', 'ensemble']
     labels = ['KNN', 'Logistic Reg', 'Random Forest', 'SVM', 'Ensemble']
 
     data = []
     version_summary = {}
 
-    for cfg_file in cfg_files:
-        try:
-            cfg = load_config(cfg_file)
-        except Exception:
-            continue
-
+    for cfg in configs:
         ver = cfg.get('model_version')
-        if not ver:
+        m_dir = cfg['paths']['models_dir']
+
+        # Automatically ensure test data is preprocessed if missing
+        try:
+            ensure_preprocessed_data(cfg)
+        except Exception as e:
+            print(f'Note: Could not automatically preprocess data for {ver}: {e}')
             continue
 
-        m_dir = cfg['paths']['models_dir']
         test_path = os.path.join(cfg['paths']['processed_dir'], 'test_data.csv')
         if not os.path.exists(test_path):
             continue
@@ -181,7 +204,9 @@ def plot_version_comparison(figures_dir):
             m_path = os.path.join(m_dir, f'{m_key}_model_{ver}.pkl')
             if os.path.exists(m_path):
                 try:
-                    m = joblib.load(m_path)
+                    m = load_model(m_path)
+                    if m is None:
+                        continue
                     score = f1_score(y_test, m.predict(X_test), average='macro', zero_division=0)
                     data.append({'Model': lbl, 'Version': ver, 'Macro F1': score})
                     ver_scores[lbl] = score
@@ -193,15 +218,24 @@ def plot_version_comparison(figures_dir):
 
     # Only plot if at least 2 versions have evaluated models
     if len(version_summary) < 2:
+        print(f'\nSkipping multi-version comparison: found {len(version_summary)} version(s) with evaluated models (at least 2 required).')
         return
 
+    version_order = list(version_summary.keys())
     print('\nMulti-Version Comparison Matrix (Macro F1):')
     matrix_df = pd.DataFrame(version_summary)
     print(matrix_df.to_string())
 
     comp_df = pd.DataFrame(data)
     plt.figure(figsize=(11, 6))
-    ax = sns.barplot(data=comp_df, x='Model', y='Macro F1', hue='Version', palette='Set2')
+    ax = sns.barplot(
+        data=comp_df,
+        x='Model',
+        y='Macro F1',
+        hue='Version',
+        hue_order=version_order,
+        palette='Set2',
+    )
     plt.title('Version Comparison: Macro F1 Across Models', fontsize=14, pad=12)
     plt.ylim(0, 1.05)
     plt.grid(axis='y', linestyle='--', alpha=0.7)
@@ -218,6 +252,9 @@ def plot_version_comparison(figures_dir):
     plt.tight_layout()
     out_path = os.path.join(figures_dir, 'version_comparison_all.png')
     plt.savefig(out_path)
+    # Also save a copy to top-level figures/ directory if figures_dir is a subfolder
+    if os.path.isdir('figures') and os.path.abspath(figures_dir) != os.path.abspath('figures'):
+        plt.savefig(os.path.join('figures', 'version_comparison_all.png'))
     plt.close()
     print(f'Saved: {out_path}')
 
@@ -254,7 +291,7 @@ def main():
             print(f'Warning: Model file not found: {filepath}. Skipping.')
             continue
 
-        model = joblib.load(filepath)
+        model = load_model(filepath)
         if label == 'Random Forest':
             rf_model = model
 

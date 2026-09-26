@@ -190,12 +190,8 @@ def load_file_list(files):
     return pd.concat(dfs, ignore_index=True)
 
 
-def main():
-    parser = argparse.ArgumentParser(description='Preprocess FIFA data based on version config.')
-    parser.add_argument('--config', type=str, default=None, help='Path to configuration JSON. Defaults to active_version in config.json.')
-    args = parser.parse_args()
-
-    config = load_config(args.config)
+def preprocess_data(config):
+    """Preprocess raw FIFA data and save train/test CSVs according to version configuration."""
     paths = get_paths(config)
     data_sources = config.get('data_sources', {})
     split_strategy = data_sources.get('split_strategy', 'random_split')
@@ -232,6 +228,17 @@ def main():
     print('Preprocessing complete!')
     print(f'Training samples: {len(train_df)} ({train_df.shape[1]} columns) -> {train_out}')
     print(f'Testing samples:  {len(test_df)} ({test_df.shape[1]} columns) -> {test_out}')
+    return train_out, test_out
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Preprocess FIFA data based on version config.')
+    parser.add_argument('--config', type=str, default=None, help='Path to configuration JSON. Defaults to active_version in config.json.')
+    args = parser.parse_args()
+
+    config = load_config(args.config)
+    preprocess_data(config)
+
 
 
 if __name__ == '__main__':

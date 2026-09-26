@@ -22,7 +22,10 @@
     ]
   },
   "preprocessing": {
-    "age_range": [16, 40],
+    "age_range": [
+      16,
+      40
+    ],
     "features": {
       "include_height_weight": true,
       "include_preferred_foot": true,
@@ -32,5 +35,33 @@
       "include_player_traits": true
     }
   },
-  "best_params": {}
+  "best_params": {
+    "knn": {
+      "knn__metric": "manhattan",
+      "knn__n_neighbors": 1,
+      "knn__weights": "uniform"
+    },
+    "svm": {
+      "svm__C": 28,
+      "svm__gamma": "scale",
+      "svm__kernel": "rbf"
+    },
+    "logistic_regression": {
+      "logistic__C": 17,
+      "logistic__solver": "lbfgs"
+    },
+    "random_forest": {
+      "max_depth": 30,
+      "min_samples_leaf": 1,
+      "n_estimators": 900
+    },
+    "ensemble": {
+      "ensemble__weights": [
+        1,
+        1,
+        1,
+        1
+      ]
+    }
+  }
 }
